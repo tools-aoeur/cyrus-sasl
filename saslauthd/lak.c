@@ -1649,7 +1649,7 @@ int lak_authenticate(
 		if (authenticator[i].method == lak->conf->auth_method) {
 			if (authenticator[i].check) {
                 for (;retry > 0; retry--) {
-					logger(L_INFO,L_FUNC, "Authentication: %s: %s realm=%s", lak, user, realm);
+					logger(L_INFO,L_FUNC, "Authentication: user=%s realm=%s", user, realm);
                     rc = (authenticator[i].check)(lak, user, service, realm, password);
                     switch(rc) {
                         case LAK_OK:
