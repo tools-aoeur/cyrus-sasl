@@ -80,7 +80,7 @@ typedef struct lak_password_scheme {
 	void *rock;
 } LAK_PASSWORD_SCHEME;
 
-static int lak_config_read(LAK_CONF *, const char *);
+static int lak_config_read(LAK_CONF *, const char *, const char *);
 static void lak_config_error(const int, const char *, const char *);
 static int lak_config_int(const char *);
 static int lak_config_switch(const char *);
@@ -157,12 +157,14 @@ static void lak_config_error(
 
 static int lak_config_read(
 	LAK_CONF *conf,
-	const char *configfile)
+	const char *configfile,
+	const char *configrealm)
 {
 	FILE *infile;
 	int lineno = 0;
 	char buf[4096];
 	char *p, *key;
+	int in_realm = 1; /* default for single realm configuration */
 
 	infile = fopen(configfile, "r");
 	if (!infile) {
@@ -210,7 +212,19 @@ static int lak_config_read(
 			return LAK_FAIL;
 		}
 
-		if (!strcasecmp(key, "ldap_servers"))
+		if (!strcasecmp(key, "realm")) {
+			if(!strcasecmp(p, configrealm)) {
+				in_realm = 1;
+			} else {
+				in_realm = 0;
+			}
+		}
+		if (!in_realm)
+			continue;
+
+		if (!strcasecmp(key, "realm")) {
+			/* ignore and skip */
+		} else if (!strcasecmp(key, "ldap_servers"))
 			strlcpy(conf->servers, p, LAK_URL_LEN);
 
 		else if (!strcasecmp(key, "ldap_bind_dn"))
@@ -452,7 +466,7 @@ static int lak_config(
 
 	strlcpy(conf->path, configfile, LAK_PATH_LEN);
 
-	rc = lak_config_read(conf, conf->path);
+	rc = lak_config_read(conf, conf->path, "");
 	if (rc != LAK_OK) {
 		lak_config_free(conf);
 		return rc;
@@ -1613,8 +1627,16 @@ int lak_authenticate(
 	if (EMPTY(user))
 		return LAK_FAIL;
 
-	if (EMPTY(realm))
+	if (EMPTY(realm)) {
 		realm = lak->conf->default_realm;
+	} else {
+		syslog(LOG_DEBUG|LOG_AUTH, "lak_authenticate for realm %s", realm);
+		rc = lak_config_read(lak->conf, lak->conf->path, realm);
+		if (rc != LAK_OK) {
+			syslog(LOG_ERR|LOG_AUTH, "lak_authenticate error reading config for realm %s", realm);
+			return LAK_FAIL;
+		}
+	}
 
 	for (i = 0; authenticator[i].method != -1; i++) {
 		if (authenticator[i].method == lak->conf->auth_method) {
