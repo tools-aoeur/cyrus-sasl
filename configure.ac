@@ -49,7 +49,7 @@ dnl REMINDER: When changing the version number here, please also update
 dnl the values in win32/include/config.h and include/sasl.h as well.
 dnl
 AC_INIT([cyrus-sasl],
-        [2.1.27],
+        [2.1.27-apn],
         [https://github.com/cyrusimap/cyrus-sasl/issues],
         [cyrus-sasl],
         [http://www.cyrusimap.org])
