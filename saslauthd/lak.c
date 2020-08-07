@@ -63,6 +63,7 @@
 #include <lber.h>
 #include <sasl.h>
 #include "lak.h"
+#include "utils.h"
 
 typedef struct lak_auth_method {
 	int method;
@@ -148,7 +149,7 @@ static void lak_config_error(
 	const char *key,
 	const char *value)
 {
-    syslog(LOG_ERR|LOG_AUTH,
+    logger(L_ERR,L_FUNC,
 	   "Error in saslauthd config file on line %d: %s is not a valid value for %s",
 	   lineno,
 	   value,
@@ -168,7 +169,7 @@ static int lak_config_read(
 
 	infile = fopen(configfile, "r");
 	if (!infile) {
-		syslog(LOG_ERR|LOG_AUTH,
+		logger(L_ERR,L_FUNC,
 			"Could not open saslauthd config file: %s (%m)",
 			configfile);
 		return LAK_FAIL;
@@ -191,7 +192,7 @@ static int lak_config_read(
 		}
 		if (*p != ':') {
 			fclose(infile);
-			syslog(LOG_ERR|LOG_AUTH,
+			logger(L_ERR,L_FUNC,
 				"Error in saslauthd config file on line %d: %s does not have a value",
 				lineno,
 				key);
@@ -205,7 +206,7 @@ static int lak_config_read(
 
 		if (!*p) {
 			fclose(infile);
-			syslog(LOG_ERR|LOG_AUTH,
+			logger(L_ERR,L_FUNC,
 				"Error in saslauthd config file on line %d: %s does not have a value",
 				lineno,
 				key);
@@ -263,6 +264,8 @@ static int lak_config_read(
 				conf->group_scope = LDAP_SCOPE_ONELEVEL;
 			} else if (!strcasecmp(p, "base")) {
 				conf->group_scope = LDAP_SCOPE_BASE;
+			} else if (!strcasecmp(p, "sub")) {
+				conf->group_scope = LDAP_SCOPE_SUBTREE;
 			} else {
 				fclose(infile);
 				lak_config_error(lineno, key, p);
@@ -285,6 +288,8 @@ static int lak_config_read(
 		else if (!strcasecmp(key, "ldap_auth_method")) {
 			if (!strcasecmp(p, "custom")) {
 				conf->auth_method = LAK_AUTH_METHOD_CUSTOM;
+			} else if (!strcasecmp(p, "bind")) {
+				conf->auth_method = LAK_AUTH_METHOD_BIND;
 			} else if (!strcasecmp(p, "fastbind")) {
 				conf->auth_method = LAK_AUTH_METHOD_FASTBIND;
 			} else {
@@ -326,6 +331,8 @@ static int lak_config_read(
 				conf->scope = LDAP_SCOPE_ONELEVEL;
 			} else if (!strcasecmp(p, "base")) {
 				conf->scope = LDAP_SCOPE_BASE;
+			} else if (!strcasecmp(p, "sub")) {
+				conf->scope = LDAP_SCOPE_SUBTREE;
 			} else {
 				fclose(infile);
 				lak_config_error(lineno, key, p);
@@ -379,7 +386,7 @@ static int lak_config_read(
 
 		else {
 			fclose(infile);
-			syslog(LOG_ERR|LOG_AUTH,
+			logger(L_ERR,L_FUNC,
 				"Error in saslauthd config file on line %d: Unknown key %s",
 				lineno,
 				key);
@@ -624,7 +631,7 @@ static int lak_expand_tokens(
 	int percents, service_len, realm_len, dn_len, user_len, maxparamlength;
 	
 	if (pattern == NULL) {
-		syslog(LOG_ERR|LOG_AUTH, "filter pattern not setup");
+		logger(L_ERR,L_FUNC, "filter pattern not setup");
 		return LAK_FAIL;
 	}
 
@@ -661,7 +668,7 @@ static int lak_expand_tokens(
 			strncat(buf, ptr, temp-ptr);
 
 		if ((temp+1) >= end) {
-			syslog(LOG_DEBUG|LOG_AUTH, "Incomplete lookup substitution format");
+			logger(L_DEBUG,L_FUNC, "Incomplete lookup substitution format");
 			break;
 		}
 
@@ -677,7 +684,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Username not available.");
+					logger(L_DEBUG,L_FUNC, "Username not available.");
 				break;
 			case 'U':
 				if (ISSET(username)) {
@@ -688,7 +695,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Username not available.");
+					logger(L_DEBUG,L_FUNC, "Username not available.");
 				break;
 			case '1':
 			case '2':
@@ -713,7 +720,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Domain/Realm not available.");
+					logger(L_DEBUG,L_FUNC, "Domain/Realm not available.");
 				break;
 			case 'd':
 				if (ISSET(username) && 
@@ -724,7 +731,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Domain/Realm not available.");
+					logger(L_DEBUG,L_FUNC, "Domain/Realm not available.");
                                 break;
 			case 'R':
 			case 'r':
@@ -737,7 +744,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Domain/Realm not available.");
+					logger(L_DEBUG,L_FUNC, "Domain/Realm not available.");
 				break;
 			case 's':
 				if (ISSET(service)) {
@@ -747,7 +754,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "Service not available.");
+					logger(L_DEBUG,L_FUNC, "Service not available.");
 				break;
 			case 'D':
 				if (ISSET(dn)) {
@@ -757,7 +764,7 @@ static int lak_expand_tokens(
 						free(ebuf);
 					}
 				} else
-					syslog(LOG_DEBUG|LOG_AUTH, "User DN not available.");
+					logger(L_DEBUG,L_FUNC, "User DN not available.");
 				break;
 			default:
 				break;
@@ -879,14 +886,14 @@ static int lak_connect(
 
 	rc = ldap_initialize(&lak->ld, lak->conf->servers);
 	if (rc != LDAP_SUCCESS) {
-		syslog(LOG_ERR|LOG_AUTH, "ldap_initialize failed (%s)", lak->conf->servers);
+		logger(L_ERR,L_FUNC, "ldap_initialize failed (%s)", lak->conf->servers);
 		return LAK_CONNECT_FAIL;
 	}
 
 	if (lak->conf->debug) {
 		rc = ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, &(lak->conf->debug));
 		if (rc != LDAP_OPT_SUCCESS)
-			syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_DEBUG_LEVEL %x.", lak->conf->debug);
+			logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_DEBUG_LEVEL %x.", lak->conf->debug);
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_PROTOCOL_VERSION, &(lak->conf->version));
@@ -894,11 +901,11 @@ static int lak_connect(
 
 		if (lak->conf->use_sasl ||
 		    lak->conf->start_tls) {
-			syslog(LOG_ERR|LOG_AUTH, "Failed to set LDAP_OPT_PROTOCOL_VERSION %d, required for ldap_start_tls and ldap_use_sasl.", lak->conf->version);
+			logger(L_ERR,L_FUNC, "Failed to set LDAP_OPT_PROTOCOL_VERSION %d, required for ldap_start_tls and ldap_use_sasl.", lak->conf->version);
 			lak_unbind(lak);
 			return LAK_CONNECT_FAIL;
 		} else
-			syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_PROTOCOL_VERSION %d.", lak->conf->version);
+			logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_PROTOCOL_VERSION %d.", lak->conf->version);
 
 		lak->conf->version = LDAP_VERSION2;
 
@@ -906,43 +913,43 @@ static int lak_connect(
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_NETWORK_TIMEOUT, &(lak->conf->timeout));
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_NETWORK_TIMEOUT %ld.%ld.", lak->conf->timeout.tv_sec, lak->conf->timeout.tv_usec);
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_NETWORK_TIMEOUT %ld.%ld.", lak->conf->timeout.tv_sec, lak->conf->timeout.tv_usec);
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_TIMEOUT, &(lak->conf->timeout));
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_TIMEOUT %ld.%ld.", lak->conf->timeout.tv_sec, lak->conf->timeout.tv_usec);
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_TIMEOUT %ld.%ld.", lak->conf->timeout.tv_sec, lak->conf->timeout.tv_usec);
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_TIMELIMIT, &(lak->conf->time_limit));
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_TIMELIMIT %d.", lak->conf->time_limit);
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_TIMELIMIT %d.", lak->conf->time_limit);
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_DEREF, &(lak->conf->deref));
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_DEREF %d.", lak->conf->deref);
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_DEREF %d.", lak->conf->deref);
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_REFERRALS, lak->conf->referrals ? LDAP_OPT_ON : LDAP_OPT_OFF);
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_REFERRALS.");
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_REFERRALS.");
 	}
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_SIZELIMIT, &(lak->conf->size_limit));
 	if (rc != LDAP_OPT_SUCCESS)
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_SIZELIMIT %d.", lak->conf->size_limit);
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_SIZELIMIT %d.", lak->conf->size_limit);
 
 	rc = ldap_set_option(lak->ld, LDAP_OPT_RESTART, lak->conf->restart ? LDAP_OPT_ON : LDAP_OPT_OFF);
 	if (rc != LDAP_OPT_SUCCESS) {
-		syslog(LOG_WARNING|LOG_AUTH, "Unable to set LDAP_OPT_RESTART.");
+		logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_RESTART.");
 	}
 
 	if (lak->conf->start_tls) {
 
 		rc = ldap_start_tls_s(lak->ld, NULL, NULL);
 		if (rc != LDAP_SUCCESS) {
-			syslog(LOG_ERR|LOG_AUTH, "start tls failed (%s).", ldap_err2string(rc));
+			logger(L_ERR,L_FUNC, "start tls failed (%s).", ldap_err2string(rc));
 			lak_unbind(lak);
 			return LAK_CONNECT_FAIL;
 		}
@@ -965,7 +972,7 @@ static int lak_connect(
 		if (ISSET(lak->conf->sasl_secprops)) {
 			rc = ldap_set_option(lak->ld, LDAP_OPT_X_SASL_SECPROPS, (void *) lak->conf->sasl_secprops);
 			if( rc != LDAP_OPT_SUCCESS ) {
-				syslog(LOG_ERR|LOG_AUTH, "Unable to set LDAP_OPT_X_SASL_SECPROPS.");
+				logger(L_ERR,L_FUNC, "Unable to set LDAP_OPT_X_SASL_SECPROPS.");
 				lak_unbind(lak);
 				return LAK_CONNECT_FAIL;
 			}
@@ -1167,7 +1174,7 @@ static int lak_bind(
 		case LDAP_TIMEOUT:
 		case LDAP_SERVER_DOWN:
 		default:
-			syslog(LOG_DEBUG|LOG_AUTH,
+			logger(L_DEBUG,L_FUNC,
 				   (lak->conf->use_sasl ? "ldap_sasl_interactive_bind() failed %d (%s)." : "ldap_simple_bind() failed %d (%s)."), rc, ldap_err2string(rc));
 			lak->status = LAK_NOT_BOUND;
 			return LAK_RETRY;
@@ -1223,7 +1230,7 @@ int lak_retrieve(
 	*ret = NULL;
 
 	if (lak == NULL) {
-		syslog(LOG_ERR|LOG_AUTH, "lak_init did not run.");
+		logger(L_ERR,L_FUNC, "lak_init did not run.");
 		return LAK_FAIL;
 	}
 
@@ -1267,13 +1274,13 @@ int lak_retrieve(
 		case LDAP_INSUFFICIENT_ACCESS:
 			/*  We do not need to re-connect to the LDAP server 
 			    under these conditions */
-			syslog(LOG_ERR|LOG_AUTH, "user ldap_search_st() failed: %s", ldap_err2string(rc));
+			logger(L_ERR,L_FUNC, "user ldap_search_st() failed: %s", ldap_err2string(rc));
             rc = LAK_USER_NOT_FOUND;
 			goto done;
 		case LDAP_TIMEOUT:
 		case LDAP_SERVER_DOWN:
 		default:
-			syslog(LOG_ERR|LOG_AUTH, "user ldap_search_st() failed: %s", ldap_err2string(rc));
+			logger(L_ERR,L_FUNC, "user ldap_search_st() failed: %s", ldap_err2string(rc));
             rc = LAK_RETRY;
 			lak->status = LAK_NOT_BOUND;
 			goto done;
@@ -1282,9 +1289,9 @@ int lak_retrieve(
     i = ldap_count_entries(lak->ld, res);
     if (i != 1) {
         if (i == 0)
-			syslog(LOG_DEBUG|LOG_AUTH, "Entry not found (%s).", filter);
+			logger(L_DEBUG,L_FUNC, "Entry not found (%s).", filter);
         else
-            syslog(LOG_DEBUG|LOG_AUTH, "Duplicate entries found (%s).", filter);
+            logger(L_DEBUG,L_FUNC, "Duplicate entries found (%s).", filter);
         rc = LAK_USER_NOT_FOUND;
         goto done;
     }
@@ -1377,14 +1384,14 @@ static int lak_group_member(
 
 #if LDAP_VENDOR_VERSION >= 20122
             if (ldap_whoami_s(lak->ld, &dn_bv, NULL, NULL) != LDAP_SUCCESS || !dn_bv) {
-                syslog(LOG_ERR|LOG_AUTH, "ldap_whoami_s() failed.");
+                logger(L_ERR,L_FUNC, "ldap_whoami_s() failed.");
                 rc =  LAK_NOT_GROUP_MEMBER;
                 goto done;
             }
 
             user_dn = dn_bv->bv_val;
 #else
-            syslog(LOG_ERR|LOG_AUTH, "Your OpenLDAP API does not supported ldap_whoami().");
+            logger(L_ERR,L_FUNC, "Your OpenLDAP API does not supported ldap_whoami().");
             rc =  LAK_NOT_GROUP_MEMBER;
             goto done;
 #endif
@@ -1427,13 +1434,13 @@ static int lak_group_member(
             case LDAP_BUSY:
             case LDAP_UNAVAILABLE:
             case LDAP_INSUFFICIENT_ACCESS:
-                syslog(LOG_ERR|LOG_AUTH, "group ldap_search_st() failed: %s", ldap_err2string(rc));
+                logger(L_ERR,L_FUNC, "group ldap_search_st() failed: %s", ldap_err2string(rc));
                 rc = LAK_NOT_GROUP_MEMBER;
                 goto done;
             case LDAP_TIMEOUT:
             case LDAP_SERVER_DOWN:
             default:
-                syslog(LOG_ERR|LOG_AUTH, "group ldap_search_st() failed: %s", ldap_err2string(rc));
+                logger(L_ERR,L_FUNC, "group ldap_search_st() failed: %s", ldap_err2string(rc));
                 rc = LAK_RETRY;
                 lak->status = LAK_NOT_BOUND;
                 goto done;
@@ -1443,7 +1450,7 @@ static int lak_group_member(
 
     } else {
 
-            syslog(LOG_WARNING|LOG_AUTH, "Unknown ldap_group_match_method value.");
+            logger(L_ERR,L_FUNC, "Unknown ldap_group_match_method value.");
             rc = LAK_FAIL;
 
     }
@@ -1620,7 +1627,7 @@ int lak_authenticate(
     int retry = 2;
 
 	if (lak == NULL) {
-		syslog(LOG_ERR|LOG_AUTH, "lak_init did not run.");
+		logger(L_ERR,L_FUNC, "lak_init did not run.");
 		return LAK_FAIL;
 	}
 
@@ -1630,10 +1637,10 @@ int lak_authenticate(
 	if (EMPTY(realm)) {
 		realm = lak->conf->default_realm;
 	} else {
-		syslog(LOG_DEBUG|LOG_AUTH, "lak_authenticate for realm %s", realm);
+		logger(L_DEBUG,L_FUNC, "lak_authenticate for realm %s", realm);
 		rc = lak_config_read(lak->conf, lak->conf->path, realm);
 		if (rc != LAK_OK) {
-			syslog(LOG_ERR|LOG_AUTH, "lak_authenticate error reading config for realm %s", realm);
+			logger(L_ERR,L_FUNC, "lak_authenticate error reading config for realm %s", realm);
 			return LAK_FAIL;
 		}
 	}
@@ -1642,21 +1649,22 @@ int lak_authenticate(
 		if (authenticator[i].method == lak->conf->auth_method) {
 			if (authenticator[i].check) {
                 for (;retry > 0; retry--) {
+					logger(L_INFO,L_FUNC, "Authentication: %s: %s realm=%s", lak, user, realm);
                     rc = (authenticator[i].check)(lak, user, service, realm, password);
                     switch(rc) {
                         case LAK_OK:
                             return LAK_OK;
                         case LAK_RETRY:
                             if (retry > 1) {
-                                syslog(LOG_INFO|LOG_AUTH, "Retrying authentication");
+                                logger(L_INFO,L_FUNC, "Retrying authentication");
                                 break;
                             }
 
                             GCC_FALLTHROUGH
 
                         default:
-                            syslog(
-                                LOG_DEBUG|LOG_AUTH, 
+                            logger(
+                                L_DEBUG, L_FUNC, 
                                 "Authentication failed for %s%s%s: %s (%d)", 
                                 user, 
                                 (ISSET(realm) ? "/" : ""), 
@@ -1672,7 +1680,7 @@ int lak_authenticate(
 	}
 
     /* Should not get here */
-    syslog(LOG_DEBUG|LOG_AUTH, "Authentication method not setup properly (%d)", lak->conf->auth_method);
+    logger(L_DEBUG,L_FUNC, "Authentication method not setup properly (%d)", lak->conf->auth_method);
 
 	return LAK_FAIL;
 }
