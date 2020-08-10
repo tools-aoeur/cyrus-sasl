@@ -403,6 +403,7 @@ char *do_auth(const char *_login, const char *password, const char *service, con
 	    login = (char *)_login;
 	}
 
+	logger(L_INFO, L_FUNC, "cache_lookup login: %s, realm: %s", login, realm);
 	if (cache_lookup(login, realm, service, password, &lkup_result) == CACHE_OK) {	
 		response = strdup("OK");
 		cached = 1;
@@ -420,10 +421,10 @@ char *do_auth(const char *_login, const char *password, const char *service, con
 
 		if (flags & VERBOSE) {
 			if (cached) 
-				logger(L_DEBUG, L_FUNC, "auth success (cached): [user=%s] [service=%s] [realm=%s] [remote=%s]", \
+				logger(L_INFO, L_FUNC, "auth success (cached): [user=%s] [service=%s] [realm=%s] [remote=%s]", \
 					login, service, realm, remote);
 			else
-				logger(L_DEBUG, L_FUNC, "auth success: [user=%s] [service=%s] [realm=%s] [remote=%s] [mech=%s]", \
+				logger(L_INFO, L_FUNC, "auth success: [user=%s] [service=%s] [realm=%s] [remote=%s] [mech=%s]", \
 					login, service, realm, remote, auth_mech->name);
 		}
 		return response;
