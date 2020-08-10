@@ -1634,15 +1634,29 @@ int lak_authenticate(
 	if (EMPTY(user))
 		return LAK_FAIL;
 
+	/* use the specified realm from the user (@realm suffix) */
+	if (EMPTY(realm)) {
+		char* r;
+
+		r = strchr(user, '@');
+		if (r) {
+			r++;
+			logger(L_INFO,L_FUNC, "realm from user %s", r);
+			realm = r; /* we can use it as is */
+		}
+	}
+
+	/* if the realm is still empty assign it the default from config */
 	if (EMPTY(realm)) {
 		realm = lak->conf->default_realm;
-	} else {
-		logger(L_DEBUG,L_FUNC, "lak_authenticate for realm %s", realm);
-		rc = lak_config_read(lak->conf, lak->conf->path, realm);
-		if (rc != LAK_OK) {
-			logger(L_ERR,L_FUNC, "lak_authenticate error reading config for realm %s", realm);
-			return LAK_FAIL;
-		}
+		logger(L_INFO,L_FUNC, "realm from default %s", realm);
+	}
+
+	logger(L_INFO,L_FUNC, "lak_authenticate for realm %s", realm);
+	rc = lak_config_read(lak->conf, lak->conf->path, realm);
+	if (rc != LAK_OK) {
+		logger(L_ERR,L_FUNC, "lak_authenticate error reading config for realm %s", realm);
+		return LAK_FAIL;
 	}
 
 	for (i = 0; authenticator[i].method != -1; i++) {
